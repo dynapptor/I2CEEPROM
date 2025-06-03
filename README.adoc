@@ -1,0 +1,133 @@
+= I2CEEPROM Library
+:toc: left
+:icons: font
+:sectnums:
+:license: MIT License
+
+== Introduction
+
+The I2CEEPROM library provides a synchronous interface for interacting with AT24LC series I2C EEPROM chips (4 KB to 64 KB, e.g., AT24LC256, AT24LC512) on Arduino platforms. Derived from the `StorageBase` class, it supports reliable read/write operations with write verification, optimized for shutdown-time configuration storage in home automation systems. The library integrates with the `Logger` library for error reporting and is compatible with ESP32, ESP8266, AVR, and RP2040 platforms.
+
+== Features
+
+* Synchronous, blocking API for straightforward usage.
+* Write verification for data integrity (`writeu8`, `writeArray`, `updateArray`).
+* Optimized block writes for fast shutdown-time saves (~10–15 ms for 100 bytes).
+* Platform-specific I2C buffer sizes (128 bytes for ESP32/ESP8266/RP2040, 30 bytes for AVR).
+* Error logging for I2C issues (e.g., NACK, timeout) via `Logger`.
+* Write cycle optimization with `updateu8` and `updateArray` to extend EEPROM lifespan.
+* Optional hardware write protection via a configurable pin.
+
+== Installation
+
+To use the I2CEEPROM library in your Arduino or PlatformIO project:
+
+1. Install the required dependencies: `StorageBase`, `Logger`, and `Callback` libraries.
+2. Clone or download the library:
++
+[source,bash]
+----
+git clone https://github.com/dynapptor/I2CEEPROM.git
+----
+3. For Arduino IDE:
+   - Copy the `I2CEEPROM` folder to your Arduino `libraries` directory.
+4. For PlatformIO:
+   - Place the `I2CEEPROM` folder in the project's `lib/` directory or add as a dependency in `platformio.ini`:
++
+[source,ini]
+----
+lib_deps = https://github.com/dynapptor/I2CEEPROM.git
+----
+5. Include the library in your sketch:
++
+[source,cpp]
+----
+#include <I2CEEPROM.h>
+----
+
+== Dependencies
+
+* *Arduino Wire Library*: For I2C communication (included with Arduino framework).
+* *StorageBase*: Base class for storage operations.
+* *Logger*: For error logging.
+* *Callback*: Required by the `Logger` library.
+
+Ensure these libraries are installed before using `I2CEEPROM`.
+
+== Usage
+
+Below is an example demonstrating initialization, reading, writing, and formatting with the I2CEEPROM library.
+
+[source,cpp]
+----
+// Initialize a 32 KB EEPROM at I2C address 0x50
+#include <Wire.h>
+#include <I2CEEPROM.h>
+
+I2CEEPROM eeprom(0x50, AT24LC::AT24LC256, &Wire);
+
+void setup() {
+  Wire.begin();
+  Serial.begin(115200);
+  if (!eeprom.isConnected()) {
+    Serial.println("EEPROM not found!");
+    while (1);
+  }
+
+  // Read 100 bytes of configuration at startup
+  uint8_t config[100];
+  eeprom.readArray(0, config, 100);
+
+  // Write configuration before shutdown
+  uint8_t newConfig[100] = {0x55};
+  if (eeprom.writeArray(0, newConfig, 100)) {
+    Serial.println("Config saved successfully");
+  }
+
+  // Update configuration (e.g., from web interface)
+  uint8_t updatedConfig[50] = {0xAA};
+  eeprom.updateArray(100, updatedConfig, 50);
+
+  // Format EEPROM with zeros
+  eeprom.format(0x00);
+}
+
+void loop() {}
+----
+
+== Configuration Options
+
+* *I2C Address*: Set via constructor (0x50–0x57).
+* *Chip Type*: Specify using `AT24LC` enum (e.g., `AT24LC::AT24LC256` for 32 KB).
+* *Write Protect Pin*: Optional, set to -1 if unused.
+* *Write Cycle Time*: Default 5 ms (`I2C_WRITEDELAY`), adjustable with `setExtraWriteCycleTime`.
+
+== Notes
+
+* *Address Validation*: Prevents out-of-bounds access using `isValidAddress`.
+* *EEPROM Lifespan*: `updateu8` and `updateArray` minimize write cycles (100,000 cycles/cell).
+* *Performance*: Optimized for shutdown writes, suitable for home automation.
+* *Platform Considerations*:
+  - ESP32/ESP8266/RP2040: Larger buffer (128 bytes), FreeRTOS support.
+  - AVR: Smaller buffer (30 bytes), ideal for constrained environments.
+* *Error Handling*: I2C errors logged via `Logger` for debugging.
+
+== Contributing
+
+Contributions are welcome! To contribute:
+
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/YourFeature`).
+3. Commit your changes (`git commit -m 'Add YourFeature'`).
+4. Push to the branch (`git push origin feature/YourFeature`).
+5. Open a pull request.
+
+Please follow the project's coding style and include tests where applicable.
+
+== License
+
+This project is licensed under the MIT License. See the link:LICENSE.txt[LICENSE] file for details.
+
+== Contact
+
+For questions or feedback, please open an issue on the project's GitHub repository.
